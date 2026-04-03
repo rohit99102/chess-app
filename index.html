@@ -6,38 +6,40 @@
 <title>Chess Puzzle App</title>
 
 <style>
-body {
+body{
   margin:0;
-  font-family:sans-serif;
   background:#0b1020;
-  color:#fff;
+  color:white;
+  font-family:sans-serif;
   text-align:center;
 }
-.board {
+
+.board{
   width:320px;
   height:320px;
   margin:20px auto;
   display:grid;
   grid-template-columns:repeat(8,1fr);
 }
-.square {
+
+.square{
   display:flex;
-  align-items:center;
   justify-content:center;
+  align-items:center;
   font-size:26px;
   cursor:pointer;
 }
-.light { background:#f0d9b5; color:black; }
-.dark { background:#b58863; color:black; }
 
-button {
-  padding:10px 20px;
+.light{background:#f0d9b5;color:black;}
+.dark{background:#b58863;color:black;}
+
+button{
+  padding:10px;
   margin:10px;
   border:none;
-  border-radius:10px;
   background:#6d5df6;
   color:white;
-  font-weight:bold;
+  border-radius:10px;
   cursor:pointer;
 }
 </style>
@@ -58,16 +60,16 @@ button {
 <script type="module">
 import { Chess } from "https://cdn.jsdelivr.net/npm/chess.js@1.0.0-beta.8/+esm";
 
-const boardEl = document.getElementById("board");
-const statusEl = document.getElementById("status");
-
 let game = new Chess();
 let puzzles = [];
-let current = null;
+let current;
 let selected = null;
 let streak = 0;
 let timer = 10;
 let timerId;
+
+const boardEl = document.getElementById("board");
+const statusEl = document.getElementById("status");
 
 const pieces = {
   K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙",
@@ -79,24 +81,25 @@ function parseTXT(text){
     .map(l=>l.trim())
     .filter(l=>l)
     .map(line=>{
-      const p = line.split(" ");
+      const parts = line.split(" ");
       return {
-        fen:p[0],
-        solution:p[1],
-        rating:parseInt(p[2]) || 1000
+        fen: parts.slice(0,6).join(" "), // FIXED FEN
+        solution: parts[6],
+        rating: parseInt(parts[7]) || 1000
       };
     });
 }
 
 async function loadPuzzles(){
   try{
-    const res = await fetch("/puzzles.txt");
+    const res = await fetch("puzzles.txt");
     const text = await res.text();
     puzzles = parseTXT(text);
 
-    if(!puzzles.length) throw "empty";
+    if(!puzzles.length) throw "Empty";
 
   }catch(e){
+    console.error(e);
     puzzles = [{
       fen:"8/8/8/8/8/8/5K2/6Rk w - - 0 1",
       solution:"g1g8",
@@ -112,12 +115,13 @@ function loadPuzzle(i){
   game = new Chess(current.fen);
   selected = null;
 
-  render();
+  renderBoard();
   startTimer();
+
   statusEl.textContent = "Find best move";
 }
 
-function render(){
+function renderBoard(){
   boardEl.innerHTML="";
   const board = game.board();
 
@@ -162,6 +166,7 @@ function clickSquare(square){
   }
 
   const uci = move.from + move.to;
+
   if(uci !== current.solution){
     streak = 0;
     statusEl.textContent="❌ Wrong";
@@ -189,9 +194,10 @@ function startTimer(){
   timerId = setInterval(()=>{
     timer--;
     updateTimer();
+
     if(timer<=0){
       clearInterval(timerId);
-      streak=0;
+      streak = 0;
       statusEl.textContent="⏰ Time up";
     }
   },1000);
