@@ -3,212 +3,803 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chess Puzzle App</title>
-
+<title>Chess Puzzles</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
 <style>
-body{
-  margin:0;
-  background:#0b1020;
-  color:white;
-  font-family:sans-serif;
-  text-align:center;
+:root {
+  --bg: #0d0d0d;
+  --surface: #161616;
+  --border: #2a2a2a;
+  --accent: #e8ff47;
+  --accent-dim: #b8cc1a;
+  --text: #f0f0f0;
+  --muted: #666;
+  --light-sq: #d4c4a0;
+  --dark-sq: #8b7355;
+  --selected: #e8ff47;
+  --hint: #ff9f1c;
+  --correct: #4ade80;
+  --wrong: #f87171;
 }
 
-.board{
-  width:320px;
-  height:320px;
-  margin:20px auto;
-  display:grid;
-  grid-template-columns:repeat(8,1fr);
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.square{
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  font-size:26px;
-  cursor:pointer;
+/* Header */
+header {
+  width: 100%;
+  max-width: 520px;
+  padding: 1.5rem 1rem 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
 }
 
-.light{background:#f0d9b5;color:black;}
-.dark{background:#b58863;color:black;}
+.logo {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 1.4rem;
+  letter-spacing: -0.02em;
+  color: var(--accent);
+}
 
-button{
-  padding:10px;
-  margin:10px;
-  border:none;
-  background:#6d5df6;
-  color:white;
-  border-radius:10px;
-  cursor:pointer;
+.logo span { color: var(--text); }
+
+/* Stats bar */
+.stats {
+  width: 100%;
+  max-width: 520px;
+  padding: 1rem;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 8px;
+  text-align: center;
+}
+
+.stat-val {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.stat-lbl {
+  font-size: 0.6rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 4px;
+}
+
+/* Board wrapper */
+.board-container {
+  width: 100%;
+  max-width: 520px;
+  padding: 0 1rem;
+  position: relative;
+}
+
+.board-outer {
+  position: relative;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 2px solid var(--border);
+}
+
+/* Coordinates */
+.coords-files {
+  display: grid;
+  grid-template-columns: 18px repeat(8, 1fr) 18px;
+  padding: 0 18px;
+}
+
+.coords-files span {
+  text-align: center;
+  font-size: 0.6rem;
+  color: var(--muted);
+  padding: 2px 0;
+}
+
+.board-with-ranks {
+  display: grid;
+  grid-template-columns: 18px 1fr 18px;
+}
+
+.coords-ranks {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+}
+
+.coords-ranks span {
+  font-size: 0.6rem;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1;
+}
+
+/* Board grid */
+#board {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  aspect-ratio: 1;
+  width: 100%;
+}
+
+.sq {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: filter 0.1s;
+}
+
+.sq:hover { filter: brightness(1.15); }
+.sq.light { background: var(--light-sq); }
+.sq.dark  { background: var(--dark-sq); }
+
+.sq.selected::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--selected);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.sq.hint-from::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--hint);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.sq.last-from, .sq.last-to {
+  box-shadow: inset 0 0 0 3px rgba(232,255,71,0.4);
+}
+
+.piece {
+  font-size: clamp(22px, 6vw, 42px);
+  line-height: 1;
+  position: relative;
+  z-index: 1;
+  user-select: none;
+  pointer-events: none;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+
+/* Overlay */
+#overlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(2px);
+}
+
+#overlay.show { display: flex; }
+
+.overlay-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 2rem 2.5rem;
+  text-align: center;
+  max-width: 260px;
+}
+
+.overlay-icon {
+  font-size: 2.5rem;
+  margin-bottom: 12px;
+}
+
+.overlay-msg {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.overlay-sub {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* Info bar */
+.info-bar {
+  width: 100%;
+  max-width: 520px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Timer */
+.timer-wrap {
+  flex-shrink: 0;
+}
+
+#timer-ring { width: 44px; height: 44px; display: block; }
+
+/* Status */
+#status {
+  flex: 1;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+#status .theme-tag {
+  display: inline-block;
+  background: #1f1f1f;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 2px 10px;
+  font-size: 0.65rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+#status .turn-tag {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* Rating badge */
+#rating-badge {
+  font-family: 'Syne', sans-serif;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+/* Progress bar for multi-move */
+.move-progress {
+  width: 100%;
+  max-width: 520px;
+  padding: 0 1rem;
+  margin-bottom: 4px;
+}
+
+.move-dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.move-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: background 0.3s;
+}
+
+.move-dot.done { background: var(--correct); }
+.move-dot.engine { background: var(--muted); }
+.move-dot.current { background: var(--accent); }
+.move-dot.pending { background: var(--border); }
+
+.move-dots-label {
+  font-size: 0.6rem;
+  color: var(--muted);
+  margin-left: 4px;
+}
+
+/* Controls */
+.controls {
+  width: 100%;
+  max-width: 520px;
+  padding: 0 1rem 1.5rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.btn {
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.02em;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.35; cursor: default; }
+.btn:disabled:hover { border-color: var(--border); color: var(--text); }
+
+/* Loading screen */
+#loading {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  gap: 16px;
+}
+
+.loading-logo {
+  font-family: 'Syne', sans-serif;
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.loading-bar {
+  width: 200px;
+  height: 2px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.loading-progress {
+  height: 100%;
+  background: var(--accent);
+  width: 0%;
+  transition: width 0.3s;
+}
+
+.loading-text {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+/* Flip button */
+#flip-btn { font-size: 1rem; }
+
+@media (max-width: 420px) {
+  .stat-val { font-size: 1.1rem; }
+  .controls { grid-template-columns: 1fr 1fr 1fr; }
 }
 </style>
 </head>
-
 <body>
 
-<h2>🔥 Chess Puzzle</h2>
-<p>Streak: <span id="streak">0</span></p>
-<p>Timer: <span id="timer">10</span></p>
+<div id="loading">
+  <div class="loading-logo">♟ PUZZLES</div>
+  <div class="loading-bar"><div class="loading-progress" id="load-bar"></div></div>
+  <div class="loading-text" id="load-txt">Loading puzzles…</div>
+</div>
 
-<div id="board" class="board"></div>
+<header>
+  <div class="logo">♟ <span>PUZZLE</span>RUSH</div>
+  <div style="font-size:0.65rem;color:var(--muted)" id="puzzle-count"></div>
+</header>
 
-<p id="status">Loading...</p>
+<div class="stats">
+  <div class="stat-card"><div class="stat-val" id="s-streak">0</div><div class="stat-lbl">Streak</div></div>
+  <div class="stat-card"><div class="stat-val" id="s-solved">0</div><div class="stat-lbl">Solved</div></div>
+  <div class="stat-card"><div class="stat-val" id="s-acc">—</div><div class="stat-lbl">Accuracy</div></div>
+  <div class="stat-card"><div class="stat-val" id="s-rating">—</div><div class="stat-lbl">Avg Rating</div></div>
+</div>
 
-<button onclick="nextPuzzle()">Next</button>
+<div class="board-container">
+  <div class="coords-files" id="files-top"></div>
+  <div class="board-with-ranks">
+    <div class="coords-ranks" id="ranks-left"></div>
+    <div class="board-outer">
+      <div id="board"></div>
+      <div id="overlay">
+        <div class="overlay-card">
+          <div class="overlay-icon" id="ov-icon"></div>
+          <div class="overlay-msg" id="ov-msg"></div>
+          <div class="overlay-sub" id="ov-sub"></div>
+        </div>
+      </div>
+    </div>
+    <div class="coords-ranks" id="ranks-right"></div>
+  </div>
+  <div class="coords-files" id="files-bot"></div>
+</div>
 
-<script type="module">
-import { Chess } from "https://cdn.jsdelivr.net/npm/chess.js@1.0.0-beta.8/+esm";
+<div class="info-bar">
+  <div class="timer-wrap">
+    <svg id="timer-ring" viewBox="0 0 44 44">
+      <circle cx="22" cy="22" r="18" fill="none" stroke="#2a2a2a" stroke-width="3"/>
+      <circle id="timer-arc" cx="22" cy="22" r="18" fill="none" stroke="#e8ff47" stroke-width="3"
+        stroke-dasharray="113.1" stroke-dashoffset="0" stroke-linecap="round"
+        transform="rotate(-90 22 22)" style="transition:stroke-dashoffset 0.9s linear,stroke 0.3s"/>
+      <text id="timer-txt" x="22" y="27" text-anchor="middle" font-family="Syne,sans-serif"
+        font-size="13" font-weight="800" fill="#f0f0f0">20</text>
+    </svg>
+  </div>
+  <div id="status">Loading…</div>
+  <div id="rating-badge">★ —</div>
+</div>
 
-let game = new Chess();
-let puzzles = [];
-let current;
-let selected = null;
-let streak = 0;
-let timer = 10;
-let timerId;
+<div class="move-progress">
+  <div class="move-dots" id="move-dots"></div>
+</div>
 
-const boardEl = document.getElementById("board");
-const statusEl = document.getElementById("status");
+<div class="controls">
+  <button class="btn" id="hint-btn" onclick="showHint()">💡 Hint</button>
+  <button class="btn" id="flip-btn" onclick="flipBoard()">⟳ Flip</button>
+  <button class="btn" onclick="skipPuzzle()">Skip →</button>
+</div>
 
-const pieces = {
-  K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙",
-  k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"
-};
+<script src="https://cdn.jsdelivr.net/npm/chess.js@0.10.3/chess.min.js"></script>
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+const TIMER_MAX = 20;
+const CIRC = 2 * Math.PI * 18;
+const PIECES = {K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙",k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"};
 
-function parseTXT(text){
-  return text.split("\n")
-    .map(l=>l.trim())
-    .filter(l=>l)
-    .map(line=>{
-      const parts = line.split(" ");
-      return {
-        fen: parts.slice(0,6).join(" "), // FIXED FEN
-        solution: parts[6],
-        rating: parseInt(parts[7]) || 1000
-      };
-    });
-}
+let puzzles = [], current = null, chess = null;
+let selected = null, flipped = false, hintUsed = false, done = false;
+let moveIdx = 0; // index into solution moves (player's turns = even idx)
+let lastFrom = null, lastTo = null;
+let streak = 0, totalSolved = 0, totalAttempts = 0, ratingSum = 0;
+let timeLeft = TIMER_MAX, timerId = null;
 
-async function loadPuzzles(){
-  try{
-    const res = await fetch("puzzles.txt");
+// ─── Load puzzles ─────────────────────────────────────────────────────────────
+async function loadPuzzles() {
+  const bar = document.getElementById('load-bar');
+  const txt = document.getElementById('load-txt');
+  bar.style.width = '20%';
+  txt.textContent = 'Fetching puzzles.txt…';
+
+  try {
+    const res = await fetch('puzzles.txt');
+    if (!res.ok) throw new Error('fetch failed');
+    bar.style.width = '60%';
+    txt.textContent = 'Parsing…';
     const text = await res.text();
-    puzzles = parseTXT(text);
-
-    if(!puzzles.length) throw "Empty";
-
-  }catch(e){
-    console.error(e);
-    puzzles = [{
-      fen:"8/8/8/8/8/8/5K2/6Rk w - - 0 1",
-      solution:"g1g8",
-      rating:500
-    }];
+    puzzles = parsePuzzles(text);
+    bar.style.width = '100%';
+    txt.textContent = `Loaded ${puzzles.length} puzzles`;
+  } catch (e) {
+    // Fallback built-in puzzles
+    puzzles = FALLBACK;
+    bar.style.width = '100%';
+    txt.textContent = `Using ${puzzles.length} built-in puzzles`;
   }
 
-  loadPuzzle(0);
+  document.getElementById('puzzle-count').textContent = puzzles.length + ' puzzles';
+  setTimeout(() => {
+    document.getElementById('loading').style.display = 'none';
+    loadPuzzle();
+  }, 400);
 }
 
-function loadPuzzle(i){
-  current = puzzles[i % puzzles.length];
-  game = new Chess(current.fen);
-  selected = null;
+function parsePuzzles(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+  const result = [];
+  for (const line of lines) {
+    if (line.startsWith('FEN') || line.startsWith('#')) continue;
+    const parts = line.split('\t');
+    if (parts.length < 2) continue;
+    const fen = parts[0].trim();
+    const moves = parts[1].trim().split(' ').filter(m => m);
+    const rating = parts[2] ? parseInt(parts[2]) : 1200;
+    if (!fen || !moves.length) continue;
+    result.push({ fen, moves, rating });
+  }
+  return result;
+}
 
+// ─── Puzzle logic ─────────────────────────────────────────────────────────────
+function loadPuzzle() {
+  clearInterval(timerId);
+  selected = null; hintUsed = false; done = false; moveIdx = 0;
+  lastFrom = null; lastTo = null;
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('hint-btn').disabled = false;
+
+  current = puzzles[Math.floor(Math.random() * puzzles.length)];
+  chess = new Chess(current.fen);
+
+  // Board should be oriented toward the player to move
+  flipped = chess.turn() === 'b';
+
+  document.getElementById('rating-badge').textContent = '★ ' + current.rating;
+  updateMoveDots();
   renderBoard();
+  updateStatus('to-move');
   startTimer();
-
-  statusEl.textContent = "Find best move";
 }
 
-function renderBoard(){
-  boardEl.innerHTML="";
-  const board = game.board();
+function updateStatus(state) {
+  const el = document.getElementById('status');
+  const turn = chess.turn() === 'w' ? 'White' : 'Black';
+  if (state === 'to-move') {
+    const moveNum = Math.floor(moveIdx / 2) + 1;
+    const totalPlayerMoves = Math.ceil(current.moves.length / 2);
+    el.innerHTML = `<span class="turn-tag">${turn}</span> to move — move ${moveNum} of ${totalPlayerMoves}`;
+  } else if (state === 'thinking') {
+    el.innerHTML = `<span style="color:var(--muted)">Engine responding…</span>`;
+  } else if (state === 'wrong') {
+    el.innerHTML = `<span style="color:var(--wrong)">✗ Not the best move — try again</span>`;
+  } else if (state === 'hint') {
+    el.innerHTML = `<span style="color:var(--hint)">💡 Hint: move from <b>${hintSquare()}</b></span>`;
+  }
+}
 
-  for(let r=0;r<8;r++){
-    for(let c=0;c<8;c++){
-      const sq = document.createElement("div");
-      sq.className = "square " + ((r+c)%2?"dark":"light");
+function hintSquare() {
+  return current.moves[moveIdx].slice(0, 2).toUpperCase();
+}
 
-      const piece = board[r][c];
-      if(piece){
-        const code = piece.color==="w"?piece.type.toUpperCase():piece.type;
-        sq.textContent = pieces[code];
+function clickSq(sq) {
+  if (done) return;
+  clearHighlights();
+
+  if (!selected) {
+    const p = chess.get(sq);
+    if (!p || p.color !== chess.turn()) return;
+    selected = sq;
+    getSqEl(sq)?.classList.add('selected');
+    return;
+  }
+
+  if (selected === sq) { selected = null; return; }
+
+  const from = selected; selected = null;
+  const move = chess.move({ from, to: sq, promotion: 'q' });
+  if (!move) {
+    const p = chess.get(sq);
+    if (p && p.color === chess.turn()) { selected = sq; getSqEl(sq)?.classList.add('selected'); }
+    return;
+  }
+
+  // Check correctness
+  const expectedFrom = current.moves[moveIdx].slice(0, 2);
+  const expectedTo   = current.moves[moveIdx].slice(2, 4);
+  const isCorrect = move.from === expectedFrom && move.to === expectedTo;
+
+  chess.undo(); // undo, we'll replay properly
+
+  if (!isCorrect) {
+    totalAttempts++;
+    streak = 0; updateStats();
+    updateStatus('wrong');
+    setTimeout(() => updateStatus('to-move'), 1400);
+    return;
+  }
+
+  // Apply player move
+  chess.move({ from: move.from, to: move.to, promotion: 'q' });
+  lastFrom = move.from; lastTo = move.to;
+  moveIdx++;
+  updateMoveDots();
+  renderBoard();
+
+  // Check if puzzle complete
+  if (moveIdx >= current.moves.length) {
+    puzzleComplete();
+    return;
+  }
+
+  // Engine move (odd indices)
+  updateStatus('thinking');
+  setTimeout(() => {
+    const engMove = current.moves[moveIdx];
+    const ef = engMove.slice(0, 2), et = engMove.slice(2, 4), ep = engMove[4] || 'q';
+    chess.move({ from: ef, to: et, promotion: ep });
+    lastFrom = ef; lastTo = et;
+    moveIdx++;
+    updateMoveDots();
+    renderBoard();
+
+    if (moveIdx >= current.moves.length) {
+      puzzleComplete();
+    } else {
+      updateStatus('to-move');
+    }
+  }, 600);
+}
+
+function puzzleComplete() {
+  done = true;
+  clearInterval(timerId);
+  totalAttempts++;
+  totalSolved++;
+  if (!hintUsed) streak++;
+  ratingSum += current.rating;
+  updateStats();
+  showOverlay('✓', 'Excellent!', hintUsed ? 'Solved (hint used)' : 'Streak: ' + streak);
+  setTimeout(loadPuzzle, 1800);
+}
+
+function showHint() {
+  if (done || hintUsed || moveIdx >= current.moves.length) return;
+  hintUsed = true;
+  document.getElementById('hint-btn').disabled = true;
+  clearHighlights();
+  getSqEl(current.moves[moveIdx].slice(0, 2))?.classList.add('hint-from');
+  updateStatus('hint');
+}
+
+function skipPuzzle() {
+  clearInterval(timerId);
+  streak = 0; totalAttempts++;
+  updateStats();
+  showOverlay('→', 'Skipped', 'Best: ' + current.moves.join(' '));
+  setTimeout(loadPuzzle, 1500);
+}
+
+function flipBoard() {
+  flipped = !flipped;
+  renderBoard();
+}
+
+// ─── Board rendering ──────────────────────────────────────────────────────────
+function renderBoard() {
+  const el = document.getElementById('board');
+  el.innerHTML = '';
+  const b = chess.board();
+
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const br = flipped ? 7 - r : r;
+      const bc = flipped ? 7 - c : c;
+      const sq = document.createElement('div');
+      const sqName = 'abcdefgh'[bc] + (8 - br);
+      sq.className = 'sq ' + ((br + bc) % 2 === 0 ? 'light' : 'dark');
+      if (sqName === lastFrom) sq.classList.add('last-from');
+      if (sqName === lastTo)   sq.classList.add('last-to');
+
+      const piece = b[br][bc];
+      if (piece) {
+        const div = document.createElement('div');
+        div.className = 'piece';
+        const code = piece.color === 'w' ? piece.type.toUpperCase() : piece.type;
+        div.textContent = PIECES[code];
+        sq.appendChild(div);
       }
 
-      const name = "abcdefgh"[c] + (8-r);
-      sq.onclick = ()=>clickSquare(name);
-
-      boardEl.appendChild(sq);
+      sq.dataset.sq = sqName;
+      sq.addEventListener('click', () => clickSq(sqName));
+      el.appendChild(sq);
     }
   }
+
+  renderCoords();
 }
 
-function clickSquare(square){
-  if(!selected){
-    const piece = game.get(square);
-    if(!piece) return;
-    selected = square;
-    return;
+function renderCoords() {
+  const files = flipped ? 'hgfedcba' : 'abcdefgh';
+  const ranks = flipped ? '12345678' : '87654321';
+
+  const ft = document.getElementById('files-top');
+  const fb = document.getElementById('files-bot');
+  ft.innerHTML = fb.innerHTML = '<span></span>';
+  for (const f of files) {
+    ft.innerHTML += `<span>${f}</span>`;
+    fb.innerHTML += `<span>${f}</span>`;
   }
+  ft.innerHTML += '<span></span>';
+  fb.innerHTML += '<span></span>';
 
-  const move = game.move({
-    from:selected,
-    to:square,
-    promotion:"q"
-  });
-
-  selected = null;
-
-  if(!move){
-    statusEl.textContent="Illegal move";
-    return;
+  const rl = document.getElementById('ranks-left');
+  const rr = document.getElementById('ranks-right');
+  rl.innerHTML = rr.innerHTML = '';
+  for (const rk of ranks) {
+    rl.innerHTML += `<span>${rk}</span>`;
+    rr.innerHTML += `<span>${rk}</span>`;
   }
+}
 
-  const uci = move.from + move.to;
+function getSqEl(sq) {
+  return document.querySelector(`[data-sq="${sq}"]`);
+}
 
-  if(uci !== current.solution){
-    streak = 0;
-    statusEl.textContent="❌ Wrong";
-    return;
+function clearHighlights() {
+  document.querySelectorAll('.sq').forEach(s => s.classList.remove('selected', 'hint-from'));
+}
+
+// ─── Move dots ────────────────────────────────────────────────────────────────
+function updateMoveDots() {
+  const container = document.getElementById('move-dots');
+  container.innerHTML = '';
+  if (!current) return;
+  const moves = current.moves;
+  const label = document.createElement('span');
+  label.className = 'move-dots-label';
+  label.textContent = moveIdx + '/' + moves.length;
+  for (let i = 0; i < moves.length; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'move-dot';
+    if (i < moveIdx) dot.classList.add('done');
+    else if (i === moveIdx && i % 2 === 1) dot.classList.add('engine');
+    else if (i === moveIdx) dot.classList.add('current');
+    else dot.classList.add('pending');
+    container.appendChild(dot);
   }
+  container.appendChild(label);
+}
 
-  streak++;
-  document.getElementById("streak").textContent = streak;
-
-  statusEl.textContent="✅ Correct!";
+// ─── Timer ────────────────────────────────────────────────────────────────────
+function startTimer() {
   clearInterval(timerId);
-
-  setTimeout(nextPuzzle,500);
-}
-
-function nextPuzzle(){
-  loadPuzzle(Math.floor(Math.random()*puzzles.length));
-}
-
-function startTimer(){
-  clearInterval(timerId);
-  timer = 10;
+  timeLeft = TIMER_MAX;
   updateTimer();
-
-  timerId = setInterval(()=>{
-    timer--;
+  timerId = setInterval(() => {
+    timeLeft--;
     updateTimer();
-
-    if(timer<=0){
+    if (timeLeft <= 0) {
       clearInterval(timerId);
-      streak = 0;
-      statusEl.textContent="⏰ Time up";
+      done = true; streak = 0; totalAttempts++;
+      updateStats();
+      showOverlay('⏱', "Time's up", 'Best: ' + current.moves.join(' '));
+      setTimeout(loadPuzzle, 2200);
     }
-  },1000);
+  }, 1000);
 }
 
-function updateTimer(){
-  document.getElementById("timer").textContent = timer;
+function updateTimer() {
+  const frac = timeLeft / TIMER_MAX;
+  const offset = CIRC * (1 - frac);
+  const arc = document.getElementById('timer-arc');
+  arc.style.strokeDashoffset = offset;
+  arc.style.stroke = timeLeft > 8 ? '#e8ff47' : timeLeft > 4 ? '#ff9f1c' : '#f87171';
+  document.getElementById('timer-txt').textContent = timeLeft;
 }
 
+// ─── Overlay ─────────────────────────────────────────────────────────────────
+function showOverlay(icon, msg, sub) {
+  document.getElementById('ov-icon').textContent = icon;
+  document.getElementById('ov-msg').textContent = msg;
+  document.getElementById('ov-sub').textContent = sub || '';
+  document.getElementById('overlay').classList.add('show');
+}
+
+// ─── Stats ───────────────────────────────────────────────────────────────────
+function updateStats() {
+  document.getElementById('s-streak').textContent = streak;
+  document.getElementById('s-solved').textContent = totalSolved;
+  const acc = totalAttempts > 0 ? Math.round((totalSolved / totalAttempts) * 100) + '%' : '—';
+  document.getElementById('s-acc').textContent = acc;
+  const avgR = totalSolved > 0 ? Math.round(ratingSum / totalSolved) : '—';
+  document.getElementById('s-rating').textContent = avgR;
+}
+
+// ─── Fallback puzzles (if puzzles.txt not available) ─────────────────────────
+const FALLBACK = [
+  { fen: "6k1/5ppp/8/8/8/8/8/4R1K1 w - - 0 1", moves: ["e1e8"], rating: 600 },
+  { fen: "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4", moves: ["f3g5", "f6e4", "g5e4", "d8h4", "e1f1", "h4f2"], rating: 900 },
+  { fen: "5rk1/1p3ppp/pq3b2/8/8/1P1Q1N2/P4PPP/3R2K1 w - - 2 27", moves: ["d3d6", "f8d8", "d6d8", "f6d8"], rating: 1414 },
+];
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
 loadPuzzles();
 </script>
-
 </body>
 </html>
