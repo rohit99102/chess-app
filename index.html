@@ -572,9 +572,37 @@
         document.getElementById(btn.dataset.tab).classList.add("active");
       };
     });
+    function parseTXT(text) {
+  return text
+    .split("\n")
+    .slice(1)
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+    .map(line => {
+      const parts = line.split(" ");
 
+      if (parts.length < 3) return null;
+
+      const fen = parts[0];
+      const rating = parseInt(parts[parts.length - 1]) || 1200;
+      const moves = parts.slice(1, parts.length - 1);
+
+      return { fen, moves, rating };
+    })
+    .filter(Boolean);
+}
+async function loadPuzzles() {
+  const res = await fetch("/puzzles.txt");
+  const text = await res.text();
+
+  puzzles = parseTXT(text);
+
+  console.log("Loaded puzzles:", puzzles.length);
+
+  loadPuzzle(0); // start first puzzle
+}
     updateUI();
-    loadPuzzlesFromFirebase();
+    loadPuzzles();
   </script>
 </body>
 </html>
