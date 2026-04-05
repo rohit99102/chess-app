@@ -1,261 +1,79 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Chess App Pro</title>
+  <title>Chess Puzzle App - Full Board</title>
   <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/1.0.0-beta.6/chess.min.js"></script>
   <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCXNSKFSsRjK9I3_pYP_GMtiyjhODOhhnQ",
+      authDomain: "chesspuzzleapp.firebaseapp.com",
+      databaseURL: "https://chesspuzzleapp-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "chesspuzzleapp",
+      storageBucket: "chesspuzzleapp.firebasestorage.app",
+      messagingSenderId: "812927630396",
+      appId: "1:812927630396:web:79e4f2d10ecd635795d739"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    let board, game, currentPuzzle;
+
+    async function loadPuzzle() {
+      try {
+        const snapshot = await get(ref(db, "puzzles"));
+        if (!snapshot.exists()) throw new Error("No puzzles");
+
+        const puzzles = snapshot.val();
+        const keys = Object.keys(puzzles);
+        const randomKey = keys[Math.floor(Math.random() * keys.length)];
+        currentPuzzle = puzzles[randomKey];
+
+        document.getElementById("puzzleText").innerHTML = `
+          <h2>${currentPuzzle.title || 'Puzzle'}</h2>
+          <div>Solution move: ${currentPuzzle.solution}</div>
+          <div id="board" style="width:500px;height:500px;margin:20px auto;"></div>
+        `;
+
+        game = new Chess(currentPuzzle.fen);
+        board = Chessboard('board', {
+          draggable: true,
+          position: currentPuzzle.fen,
+          onDrop: onDrop
+        });
+
+      } catch (error) {
+        document.getElementById("puzzleText").innerHTML = "❌ No puzzles in Firebase. Add to /puzzles path.";
+      }
+    }
+
+    function onDrop(source, target) {
+      const move = game.move({ from: source, to: target });
+      if (move === null) return 'snapback';
+
+      if (move.san === currentPuzzle.solution) {
+        document.getElementById("puzzleText").innerHTML += "<h3 style='color:green;'>✅ CORRECT! Next puzzle...</h3>";
+        setTimeout(loadPuzzle, 1500);
+      } else {
+        game.undo();
+        document.getElementById("puzzleText").innerHTML += "<div style='color:red;'>❌ Wrong! Try again.</div>";
+      }
+    }
+
+    window.onload = loadPuzzle;
+  </script>
   <style>
-    /* Enhanced styles with streaks, rush, ads placeholder */
-    :root{--bg:#eef2f6;--surface:#fff;--primary:#3b82f6;--success:#10b981;--gold:#f59e0b;}
-    *{margin:0;padding:0;box-sizing:border-box;}
-    body{font-family:system-ui;background:var(--bg);color:#000;}
-    .app{padding:20px;max-width:1200px;margin:0 auto;}
-    .tabs,.topbar{display:flex;background:var(--surface);border-radius:20px;padding:4px;box-shadow:0 10px 30px rgba(0,0,0,0.1);}
-    .tab{flex:1;padding:16px;text-align:center;border-radius:16px;cursor:pointer;transition:all 0.3s;}
-    .tab.active{background:var(--primary);color:white;}
-    .screen{display:none;padding:20px;background:var(--surface);border-radius:20px;margin:20px 0;box-shadow:0 10px 30px rgba(0,0,0,0.1);}
-    .screen.active{display:block;}
-    #board{width:500px;height:500px;margin:20px auto;}@media(max-width:600px){#board{width:90vw;height:90vw;}}
-    .streak{display:flex;align-items:center;gap:10px;background:var(--success);color:white;padding:10px;border-radius:12px;font-weight:bold;}
-    .premium-ad{background:#ffeaa7;padding:20px;border-radius:16px;text-align:center;margin:20px 0;}
-    .premium-ad button{background:var(--gold);color:#000;padding:12px 24px;border:none;border-radius:12px;font-weight:bold;cursor:pointer;}
-    .profile-pic{width:80px;height:80px;border-radius:50%;object-fit:cover;cursor:pointer;}
-    .group-list{display:grid;gap:15px;}
-    .group{border:1px solid #ccc;padding:15px;border-radius:12px;cursor:pointer;}
-    .chat{height:300px;overflow-y:auto;border:1px solid #ccc;padding:10px;border-radius:12px;background:#f9f9f9;}
-    .clock-container{position:relative;}
-    .clock-overlay{position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.7);color:white;padding:5px 10px;border-radius:8px;font-family:monospace;font-size:14px;}
-    input,button{font-family:inherit;}
+    body { font-family: Arial; background: #f0f0f0; padding: 20px; }
+    #puzzleText { background: white; padding: 20px; border-radius: 10px; margin: 20px auto; max-width: 800px; }
   </style>
 </head>
 <body>
-  <div class="app">
-    <div class="topbar">
-      <div class="streak" id="streakDisplay">🔥 Streak: 0 | Daily Goal: 10/20</div>
-      <button onclick="showPremium()" class="premium-ad-btn">⭐ Go Premium</button>
-    </div>
-    <div class="tabs">
-      <div class="tab active" data-tab="home">🏠 Home</div>
-      <div class="tab" data-tab="profile">👤 Profile</div>
-      <div class="tab" data-tab="friends">👫 Friends</div>
-      <div class="tab" data-tab="more">⋮ More</div>
-    </div>
-
-    <div id="home" class="screen active">
-      <h2>Puzzle Rush <span id="rushScore">0</span></h2>
-      <div class="clock-overlay" id="puzzleTimer">5:00</div>
-      <div id="homeBoard"></div>
-      <div id="feedback"></div>
-    </div>
-
-    <div id="profile" class="screen">
-      <h2>Profile</h2>
-      <img id="profilePic" class="profile-pic" src="https://via.placeholder.com/80?text=👤" alt="Profile">
-      <input type="file" id="photoUpload" accept="image/*" style="display:none;">
-      <p id="username">Guest</p>
-      <button onclick="document.getElementById('photoUpload').click()">Change Photo</button>
-      <!-- Themes as before -->
-    </div>
-
-    <div id="friends" class="screen">
-      <h2>Friend Groups Chat</h2>
-      <div class="group-list" id="groupList"></div>
-      <input id="newGroupName" placeholder="New group name">
-      <button onclick="createGroup()">Create/Join Group</button>
-      <div id="activeChat" class="chat"></div>
-      <div style="display:flex;gap:10px;">
-        <input id="groupChatInput" placeholder="Chat in group...">
-        <button id="sendGroupChat">Send</button>
-        <button onclick="leaveGroup()">Stop Chat</button>
-      </div>
-    </div>
-
-    <div id="more" class="screen">
-      <h3>Board Clock (10min Dual)</h3>
-      <div class="clock-container">
-        <div id="boardClockBoard"></div>
-        <div class="clock-overlay" id="clockDisplay">10:00 / 10:00</div>
-      </div>
-      <button onclick="clockStartBoard()">Start Clock</button>
-    </div>
-  </div>
-
-  <script>
-    // Firebase Config - REPLACE WITH YOURS
-    const firebaseConfig = { YOUR_CONFIG_HERE };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-    const storage = firebase.storage();
-    const auth = firebase.auth();
-
-    let user = {uid: 'guest', name: 'Guest'};
-    let puzzles = []; let board; let game; let rushTimer=300, puzzleMoveCount=0;
-    let streak=0, dailyGoal=20; let currentGroup=null;
-
-    async function init(){
-      auth.signInAnonymously().then(u=>{user={uid:u.user.uid, name:'Player'+Math.floor(Math.random()*1000)};updateProfile();});
-      await loadPuzzlesFromGitHub();
-      loadRushPuzzle();
-      setupEventListeners();
-      loadGroups();
-      updateStreak();
-    }
-
-    // Puzzles non-auto-reset timer: move-triggered
-    function loadRushPuzzle(){
-      // Same random load as before
-      game = new Chess(currentPuzzle.fen);
-      board = Chessboard('homeBoard', {draggable:true, position:currentPuzzle.fen, onDrop: rushOnDrop});
-      document.getElementById('feedback').textContent = `${currentPuzzle.title} | Moves: ${puzzleMoveCount}`;
-      startPuzzleTimer();
-    }
-    function rushOnDrop(source,target){
-      puzzleMoveCount++; // Timer changes on move
-      // Validation as before, but timer ticks per move
-      updateRushTimer();
-    }
-
-    function startPuzzleTimer(){
-      // 5min per puzzle, ticks on move
-      rushTimer = 300 - (puzzleMoveCount * 10); // 10s/move
-      updateRushTimer();
-    }
-    function updateRushTimer(){
-      const min = Math.floor(rushTimer/60), sec = rushTimer%60;
-      document.getElementById('puzzleTimer').textContent = `${min}:${sec.toString().padStart(2,'0')}`;
-    }
-
-    // Friends Groups Chat
-    function createGroup(){
-      const name = document.getElementById('newGroupName').value;
-      if(!name) return;
-      currentGroup = db.ref('groups/'+name);
-      currentGroup.on('child_added', snap=>{
-        const msg = snap.val();
-        addGroupMsg(msg.user, msg.text);
-      });
-      loadGroups();
-    }
-    function sendGroupMsg(){
-      if(!currentGroup) return;
-      const text = document.getElementById('groupChatInput').value;
-      currentGroup.push({user: user.name, text, time: Date.now()});
-      document.getElementById('groupChatInput').value = '';
-    }
-    function addGroupMsg(u, t){
-      document.getElementById('activeChat').innerHTML += `<div>${u}: ${t}</div>`;
-    }
-    function leaveGroup(){
-      if(currentGroup) currentGroup.off();
-      currentGroup = null;
-      document.getElementById('activeChat').innerHTML = '';
-    }
-    function loadGroups(){
-      db.ref('groups').once('value', snap=>{
-        const groups = [];
-        snap.forEach(child=>{
-          groups.push(child.key);
-        });
-        document.getElementById('groupList').innerHTML = groups.map(g=>
-          `<div class="group" onclick="joinGroup('${g}')">${g}</div>`
-        ).join('');
-      });
-    }
-    function joinGroup(name){
-      leaveGroup();
-      document.getElementById('newGroupName').value = name;
-      createGroup();
-    }
-
-    // Profile Photo Upload
-    document.getElementById('photoUpload').onchange = e=>{
-      const file = e.target.files[0];
-      const ref = storage.ref(`profiles/${user.uid}`);
-      ref.put(file).then(snap=>{
-        ref.getDownloadURL().then(url=>{
-          localStorage.setItem('profilePic', url);
-          document.getElementById('profilePic').src = url;
-        });
-      });
-    };
-
-    // Board Clock
-    let boardClockTimes = [600,600], boardCurrent=1;
-    function clockStartBoard(){
-      // Integrate clock overlay with board game
-      const interval = setInterval(()=>{
-        boardClockTimes[boardCurrent-1]--;
-        updateBoardClock();
-        if(boardClockTimes[boardCurrent-1] <= 0) clearInterval(interval);
-      },1000);
-    }
-
-    // Streak/Daily (local + sync)
-    function updateStreak(){
-      streak = parseInt(localStorage.getItem('streak')||0);
-      document.getElementById('streakDisplay').textContent = `🔥 Streak: ${streak} | Goal: ${streak}/${dailyGoal}`;
-    }
-
-    // Premium/Monetization Hooks
-    function showPremium(){
-      document.querySelector('.premium-ad').innerHTML = `
-        <div class="premium-ad">
-          <h3>Go Premium $4.99/mo</h3>
-          <p>Unlimited puzzles, ad-free, analysis, custom themes!</p>
-          <button onclick="purchasePremium()">Subscribe Now</button>
-        </div>
-      `;
-    }
-    function purchasePremium(){ /* Stripe/Firebase billing */ alert('Premium activated!'); }
-
-    // Event listeners, tabs, bot, etc. as previous + above
-    function setupEventListeners(){
-      document.getElementById('sendGroupChat').onclick = sendGroupMsg;
-      // Tab switch, themes, etc.
-    }
-
-    init();
-  </script>
-  <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyCXNSKFSsRjK9I3_pYP_GMtiyjhODOhhnQ",
-    authDomain: "chesspuzzleapp.firebaseapp.com",
-    databaseURL: "https://chesspuzzleapp-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "chesspuzzleapp",
-    storageBucket: "chesspuzzleapp.firebasestorage.app",
-    messagingSenderId: "812927630396",
-    appId: "1:812927630396:web:79e4f2d10ecd635795d739"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
-
-  // TEST CONNECTION
-  const dbRef = ref(db);
-
-  get(child(dbRef, `puzzles`))
-    .then((snapshot) => {
-      if (snapshot.exists()) {
-        console.log("🔥 Data loaded:", snapshot.val());
-      } else {
-        console.log("❌ No data found");
-      }
-    })
-    .catch((error) => {
-      console.error("❌ Error:", error);
-    });
-</script>
+  <div id="puzzleText">Loading puzzle...</div>
 </body>
 </html>
